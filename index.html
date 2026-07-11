@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Deposit Calculator</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #6d4aff 0%, #a855f7 35%, #ec4899 70%, #f97316 100%);
+      background-size: 400% 400%;
+      animation: gradientShift 15s ease infinite;
+      padding: 20px;
+    }
+
+    @keyframes gradientShift {
+      0%   { background-position: 0% 50%; }
+      50%  { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-radius: 24px;
+      padding: 48px 40px;
+      max-width: 460px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+
+    h1 {
+      color: white;
+      font-size: 32px;
+      font-weight: 800;
+      margin-bottom: 12px;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    .subtitle {
+      color: rgba(255,255,255,0.85);
+      font-size: 15px;
+      margin-bottom: 32px;
+    }
+
+    .input-group {
+      position: relative;
+      margin-bottom: 24px;
+    }
+
+    .input-group span {
+      position: absolute;
+      left: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 24px;
+      color: #fff;
+      font-weight: 600;
+    }
+
+    input[type="number"] {
+      width: 100%;
+      padding: 20px 20px 20px 45px;
+      font-size: 28px;
+      font-family: 'Poppins', sans-serif;
+      font-weight: 600;
+      border: none;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.95);
+      color: #6d4aff;
+      outline: none;
+      transition: all 0.3s ease;
+    }
+
+    input[type="number"]:focus {
+      transform: scale(1.02);
+      box-shadow: 0 0 30px rgba(255,255,255,0.4);
+    }
+
+    button {
+      width: 100%;
+      padding: 18px;
+      font-size: 18px;
+      font-weight: 700;
+      font-family: 'Poppins', sans-serif;
+      border: none;
+      border-radius: 14px;
+      background: linear-gradient(90deg, #f97316, #ec4899);
+      color: white;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 8px 24px rgba(236, 72, 153, 0.4);
+    }
+
+    button:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 12px 32px rgba(236, 72, 153, 0.6);
+    }
+
+    button:active {
+      transform: translateY(-1px);
+    }
+
+    .result-card {
+      margin-top: 28px;
+      padding: 24px;
+      background: rgba(255,255,255,0.95);
+      border-radius: 16px;
+      display: none;
+      animation: slideIn 0.4s ease;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .result-label {
+      font-size: 14px;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+
+    .result-value {
+      font-size: 48px;
+      font-weight: 800;
+      color: #6d4aff;
+      line-height: 1.2;
+    }
+
+    .result-subtext {
+      font-size: 13px;
+      color: #888;
+      margin-top: 8px;
+    }
+
+    .error-message {
+      color: #ff6b6b;
+      font-size: 14px;
+      margin-top: 12px;
+      display: none;
+    }
+
+    canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      z-index: 9999;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="confetti"></canvas>
+
+  <div class="card">
+    <h1>🎯 Deposit Calculator</h1>
+    <p class="subtitle">Enter your total deposit amount — we'll tell you what to pull out to hit $100</p>
+
+    <div class="input-group">
+      <span>$</span>
+      <input type="number" id="depositInput" placeholder="0.00" step="0.01" min="0" />
+    </div>
+
+    <button onclick="calculate()">Calculate Withdrawal</button>
+
+    <p class="error-message" id="errorMsg"></p>
+
+    <div class="result-card" id="resultCard">
+      <p class="result-label">Take Out</p>
+      <p class="result-value" id="resultValue">$0.00</p>
+      <p class="result-subtext">to leave exactly $100.00 in the deposit</p>
+    </div>
+  </div>
+
+  <script>
+    const input = document.getElementById('depositInput');
+    const resultCard = document.getElementById('resultCard');
+    const resultValue = document.getElementById('resultValue');
+    const errorMsg = document.getElementById('errorMsg');
+
+    input.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') calculate();
+    });
+
+    function calculate() {
+      const deposit = parseFloat(input.value);
+      
+      // Reset displays
+      resultCard.style.display = 'none';
+      errorMsg.style.display = 'none';
+
+      // Validation
+      if (isNaN(deposit)) {
+        errorMsg.textContent = 'Please enter a valid number';
+        errorMsg.style.display = 'block';
+        return;
+      }
+
+      if (deposit <= 0) {
+        errorMsg.textContent = 'Deposit must be greater than $0';
+        errorMsg.style.display = 'block';
+        return;
+      }
+
+      if (deposit < 100) {
+        errorMsg.textContent = 'Deposit must be at least $100 to withdraw to $100';
+        errorMsg.style.display = 'block';
+        return;
+      }
+
+      // Calculation
+      const withdrawal = deposit - 100;
+
+      // Display result
+      resultValue.textContent = '$' + withdrawal.toFixed(2);
+      resultCard.style.display = 'block';
+
+      // Confetti burst
+      fireConfetti();
+    }
+
+    // Simple confetti effect
+    const canvas = document.getElementById('confetti');
+    const ctx = canvas.getContext('2d');
+    let particles = [];
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    function fireConfetti() {
+      for (let i = 0; i < 100; i++) {
+        particles.push({
+          x: canvas.width / 2,
+          y: canvas.height / 2,
+          vx: (Math.random() - 0.5) * 15,
+          vy: (Math.random() - 0.5) * 15 - 5,
+          size: Math.random() * 8 + 4,
+          color: ['#6d4aff', '#a855f7', '#ec4899', '#f97316'][Math.floor(Math.random() * 4)],
+          life: 1
+        });
+      }
+    }
+
+    function animateConfetti() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      particles.forEach((p, index) => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.2; // gravity
+        p.life -= 0.015;
+        
+        if (p.life > 0) {
+          ctx.fillStyle = p.color;
+          ctx.globalAlpha = p.life;
+          ctx.fillRect(p.x, p.y, p.size, p.size);
+        } else {
+          particles.splice(index, 1);
+        }
+      });
+
+      requestAnimationFrame(animateConfetti);
+    }
+
+    animateConfetti();
+
+    window.addEventListener('resize', () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    });
+  </script>
+</body>
+</html>
